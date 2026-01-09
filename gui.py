@@ -14,7 +14,7 @@ from downloader import VideoDownloader
 from config_manager import ConfigManager
 
 # --- CONFIG & CONSTANTS ---
-CURRENT_VERSION = "1.5.1"
+CURRENT_VERSION = "2.0.0"
 REPO_OWNER = "thanhlone2k6"
 REPO_NAME = "YTB-DOWNLOAD-VIP"
 

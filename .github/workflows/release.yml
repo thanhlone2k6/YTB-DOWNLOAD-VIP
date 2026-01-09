@@ -27,7 +27,7 @@ jobs:
         
     - name: Build EXE
       run: |
-        pyinstaller --noconsole --onefile --collect-all customtkinter --collect-all PIL --collect-all packaging --collect-all yt_dlp --collect-all Cryptodome --hidden-import=customtkinter --hidden-import=PIL --hidden-import=packaging --hidden-import=Cryptodome --name "DownloaderVipp" main.py
+        pyinstaller --noconsole --onefile --collect-all customtkinter --collect-all PIL --collect-all packaging --collect-all yt_dlp --collect-all Cryptodome --hidden-import=sys --hidden-import=customtkinter --hidden-import=PIL --hidden-import=packaging --hidden-import=Cryptodome --add-data "cookie/cookies.txt;." --name "DownloaderVipp" main.py
         
     - name: Release
       uses: softprops/action-gh-release@v1
