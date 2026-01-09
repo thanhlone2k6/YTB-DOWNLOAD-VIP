@@ -12,6 +12,11 @@ import webbrowser
 from downloader import VideoDownloader
 from config_manager import ConfigManager
 
+# --- CONFIG & CONSTANTS ---
+CURRENT_VERSION = "1.0.0"
+REPO_OWNER = "thanhlone2k6"
+REPO_NAME = "YTB-DOWNLOAD-VIP"
+
 # --- THEME CONFIGURATION ---
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("dark-blue")
@@ -389,6 +394,7 @@ class App(ctk.CTk):
 
     def run_check(self):
         try:
+            # URL to check version
             VERSION_URL = "https://raw.githubusercontent.com/thanhlone2k6/YTB-DOWNLOAD-VIP/main/version.json"
             response = requests.get(VERSION_URL, timeout=5)
             if response.status_code == 200:
@@ -396,29 +402,92 @@ class App(ctk.CTk):
                 latest_version = data.get("version", "1.0.0")
                 download_url = data.get("url", "")
                 
-                # Simple comparison
-                if latest_version > "1.0.0":
+                # Check version
+                if latest_version > CURRENT_VERSION:
                     self.after(0, lambda: self.show_update_popup(latest_version, download_url))
         except Exception as e:
-            print(f"Lỗi check update rồi ông cháu ơi: {e}")
+            print(f"Update Check Error: {e}")
 
     def show_update_popup(self, version, url):
-        # Tạo một cái popup chuẩn vibe Glassmorphism
         try:
             popup = ctk.CTkToplevel(self)
-            popup.title("Update nè!")
-            popup.geometry("300x200")
-            popup.attributes("-topmost", True) # Cho hiện lên trên cùng
+            popup.title("Cập nhật mới 🚀")
+            popup.geometry("340x220")
+            popup.attributes("-topmost", True)
+            
+            # Center on screen
+            popup.update_idletasks()
+            x = self.winfo_x() + (self.winfo_width() // 2) - (340 // 2)
+            y = self.winfo_y() + (self.winfo_height() // 2) - (220 // 2)
+            popup.geometry(f"+{x}+{y}")
 
-            label = ctk.CTkLabel(popup, text=f"Đã có bản {version}!\nAe tải về dùng cho mượt nhé.", font=("Arial", 14))
-            label.pack(pady=20)
+            ctk.CTkLabel(popup, text=f"✨ Đã có bản {version}", font=("Segoe UI", 16, "bold"), text_color=COLORS["accent"]).pack(pady=(20, 5))
+            ctk.CTkLabel(popup, text="Có tính năng mới đang chờ bạn!\nBấm cài đặt để tự động update ngay.", font=("Segoe UI", 12)).pack(pady=5)
 
-            btn = ctk.CTkButton(popup, text="Tải ngay", command=lambda: [webbrowser.open(url), popup.destroy()])
-            btn.pack(pady=10)
+            # Progress for download
+            self.dl_progress = ctk.CTkProgressBar(popup, width=200, height=10, progress_color=COLORS["success"])
+            self.dl_progress.set(0)
+            
+            self.btn_update = ctk.CTkButton(popup, text="Cài đặt ngay (1 Click)", fg_color=COLORS["success"], hover_color="#059669", 
+                                            command=lambda: self.perform_update(url, popup))
+            self.btn_update.pack(pady=20)
+            
         except:
              pass
 
+    def perform_update(self, url, popup):
+        # Disable button
+        self.btn_update.configure(state="disabled", text="Đang tải về...")
+        self.dl_progress.pack(pady=5)
+        
+        threading.Thread(target=self._download_and_install, args=(url, popup), daemon=True).start()
+
+    def _download_and_install(self, url, popup):
+        try:
+            # 1. Download new exe to temp name
+            response = requests.get(url, stream=True)
+            total_size = int(response.headers.get('content-length', 0))
+            
+            new_exe_name = "new_version.exe"
+            
+            downloaded = 0
+            with open(new_exe_name, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            prog = downloaded / total_size
+                            self.after(0, lambda: self.dl_progress.set(prog))
+
+            self.after(0, lambda: self.btn_update.configure(text="Đang cài đặt..."))
+            
+            # 2. Create Batch script to replace file
+            # Windows không cho xóa file đang chạy, nên cần script ngoài
+            current_exe = os.path.basename(sys.executable)
+            if not current_exe.endswith(".exe"): current_exe = "DownloaderPro_v2.exe" # Fallback if running from script
+            
+            bat_script = f"""
+@echo off
+timeout /t 2 /nobreak >nul
+del "{current_exe}"
+move "{new_exe_name}" "{current_exe}"
+start "" "{current_exe}"
+del "%~f0"
+"""
+            with open("updater.bat", "w") as f:
+                f.write(bat_script)
+            
+            # 3. Launch script and exit
+            self.after(0, lambda: os.startfile("updater.bat"))
+            self.after(100, self.destroy)
+            
+        except Exception as e:
+            self.after(0, lambda: messagebox.showerror("Lỗi Update", str(e)))
+            self.after(0, lambda: self.btn_update.configure(state="normal", text="Thử lại"))
+
 if __name__ == "__main__":
+    import sys # Need sys for executable path
     app = App()
-    app.after(2000, app.check_update) # Check after 2s
+    app.after(2000, app.check_update)
     app.mainloop()
