@@ -1,0 +1,23 @@
+name: Auto Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Kích hoạt khi push tag có dạng v1.0, v1.0.1...
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
