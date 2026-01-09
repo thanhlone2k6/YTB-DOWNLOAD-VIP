@@ -27,12 +27,12 @@ jobs:
         
     - name: Build EXE
       run: |
-        pyinstaller --noconsole --onefile --collect-all customtkinter --hidden-import=customtkinter --hidden-import=PIL --hidden-import=PIL._tkinter_finder --name "DownloaderPro" main.py
+        pyinstaller --noconsole --onefile --collect-all customtkinter --collect-all PIL --collect-all packaging --collect-all yt_dlp --collect-all Cryptodome --hidden-import=customtkinter --hidden-import=PIL --hidden-import=packaging --hidden-import=Cryptodome --name "DownloaderVipp" main.py
         
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
-        files: dist/DownloaderPro.exe
+        files: dist/DownloaderVipp.exe
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

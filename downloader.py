@@ -6,6 +6,12 @@ class VideoDownloader:
     def __init__(self):
         pass
 
+    def _get_cookie_file(self, url):
+        # Use the master cookie file provided
+        if os.path.exists("cookies.txt"):
+            return "cookies.txt"
+        return None
+
     def get_video_info(self, url):
         """
         Extracts video information without downloading.
@@ -14,12 +20,16 @@ class VideoDownloader:
             'quiet': True,
             'no_warnings': True,
             'skip_download': True,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
+        
+        cookie_file = self._get_cookie_file(url)
+        if cookie_file:
+            # print(f"Using cookie file: {cookie_file}") # Optional logging
+            ydl_opts['cookiefile'] = cookie_file
+
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # extract_flat=True is much faster for playlists/channels if we just need the list
-                # But we might need duration/thumbnails which requires full extraction or flat='in_playlist'
-                # Let's try default behavior first but return the whole thing.
                 info = ydl.extract_info(url, download=False)
                 return info
         except Exception as e:
@@ -34,7 +44,13 @@ class VideoDownloader:
             'progress_hooks': [progress_hook] if progress_hook else [],
             'quiet': True,
             'no_warnings': True,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
+        
+        cookie_file = self._get_cookie_file(url)
+        if cookie_file:
+            print(f"Using cookie file: {cookie_file}")
+            ydl_opts['cookiefile'] = cookie_file
 
         # 1. Output Template Logic (Instagram Folder)
         if "instagram.com" in url:

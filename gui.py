@@ -13,7 +13,7 @@ from downloader import VideoDownloader
 from config_manager import ConfigManager
 
 # --- CONFIG & CONSTANTS ---
-CURRENT_VERSION = "1.0.0"
+CURRENT_VERSION = "1.5.0"
 REPO_OWNER = "thanhlone2k6"
 REPO_NAME = "YTB-DOWNLOAD-VIP"
 
@@ -252,8 +252,13 @@ class App(ctk.CTk):
         self.menu_btn_downloads = self.create_sidebar_btn("Downloads", True)
         self.menu_btn_downloads.pack(fill="x", padx=10, pady=5)
 
-        # Settings at bottom
-        # Settings at bottom removed as requested
+        # Version & Update
+        self.lbl_version = ctk.CTkLabel(self.sidebar, text=f"Version: {CURRENT_VERSION}", font=("Segoe UI", 12), text_color=COLORS["text_sec"])
+        self.lbl_version.pack(side="bottom", pady=(5, 20))
+        
+        self.btn_check_update = ctk.CTkButton(self.sidebar, text="🔄 Check Update", fg_color="transparent", hover_color=COLORS["border"], 
+                                              anchor="center", height=30, font=("Segoe UI", 12), command=self.manual_check_update)
+        self.btn_check_update.pack(side="bottom", fill="x", padx=20, pady=5)
 
         # --- MAIN CONTENT AREA ---
         self.main_area = ctk.CTkFrame(self, fg_color="transparent")
@@ -388,11 +393,15 @@ class App(ctk.CTk):
     def remove_task(self, task_widget):
         task_widget.destroy()
 
+    def manual_check_update(self):
+        self.btn_check_update.configure(state="disabled", text="Checking...")
+        threading.Thread(target=self.run_check, args=(True,), daemon=True).start()
+
     def check_update(self):
         # Chạy kiểm tra trong một luồng riêng để không làm treo giao diện
-        threading.Thread(target=self.run_check, daemon=True).start()
+        threading.Thread(target=self.run_check, args=(False,), daemon=True).start()
 
-    def run_check(self):
+    def run_check(self, is_manual=False):
         try:
             # URL to check version
             VERSION_URL = "https://raw.githubusercontent.com/thanhlone2k6/YTB-DOWNLOAD-VIP/main/version.json"
@@ -405,8 +414,17 @@ class App(ctk.CTk):
                 # Check version
                 if latest_version > CURRENT_VERSION:
                     self.after(0, lambda: self.show_update_popup(latest_version, download_url))
+                elif is_manual:
+                     self.after(0, lambda: messagebox.showinfo("Update", "Bạn đang dùng phiên bản mới nhất!"))
+            
+            if is_manual:
+                self.after(0, lambda: self.btn_check_update.configure(state="normal", text="🔄 Check Update"))
+                
         except Exception as e:
             print(f"Update Check Error: {e}")
+            if is_manual:
+                 self.after(0, lambda: messagebox.showerror("Error", "Không thể kiểm tra cập nhật"))
+                 self.after(0, lambda: self.btn_check_update.configure(state="normal", text="🔄 Check Update"))
 
     def show_update_popup(self, version, url):
         try:
