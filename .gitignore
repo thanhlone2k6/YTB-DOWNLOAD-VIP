@@ -1,0 +1,20 @@
+# Python rác
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Thư mục build và dist khi đóng gói exe
+build/
+dist/
+*.spec
+
+# File chạy exe
+*.exe
+
+# Môi trường ảo (nếu có)
+venv/
+.env
+
+# Project specific
+downloads/
+config.json
