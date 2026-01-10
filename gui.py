@@ -14,7 +14,7 @@ from downloader import VideoDownloader
 from config_manager import ConfigManager
 
 # --- CONFIG & CONSTANTS ---
-CURRENT_VERSION = "2.0.1"
+CURRENT_VERSION = "2.5.0"
 REPO_OWNER = "thanhlone2k6"
 REPO_NAME = "YTB-DOWNLOAD-VIP"
 
@@ -126,6 +126,14 @@ class TaskCard(ctk.CTkFrame):
              if thumb_url:
                  self._load_thumbnail(thumb_url)
                  
+             # Check if playlist
+             self.is_playlist = False
+             self.playlist_title = None
+             if info.get('_type') == 'playlist' or 'entries' in info:
+                 self.is_playlist = True
+                 self.playlist_title = info.get('title', 'Unknown Playlist')
+                 self.after(0, lambda: self.meta_label.configure(text=f"Playlist • {platform}"))
+                 
         except Exception as e:
             print(f"Metadata error: {e}")
 
@@ -163,18 +171,27 @@ class TaskCard(ctk.CTkFrame):
                         total_mb = total / 1024 / 1024
                         total_str = f"{total_mb:.1f} MB"
 
+                    # Playlist Progress
+                    prefix = ""
+                    p_index = d.get('playlist_index')
+                    p_count = d.get('playlist_count') or d.get('n_entries')
+                    if p_index and p_count:
+                        prefix = f"[{p_index}/{p_count}] "
+
                     self.after(0, lambda: self.progress_bar.set(percent_val))
                     self.after(0, lambda: self.percent_label.configure(text=p_str))
-                    self.after(0, lambda: self.status_label.configure(text=f"{speed_str} • {total_str}"))
+                    self.after(0, lambda: self.status_label.configure(text=f"{prefix}{speed_str} • {total_str}"))
                 except Exception as e:
                     print(f"Hook Error: {e}")
             elif d['status'] == 'finished':
+                # Only indicate full completion if not a playlist (playlist handles individual completions)
+                # But here we just update 100% for the current file
                 self.after(0, lambda: self.progress_bar.set(1))
                 self.after(0, lambda: self.percent_label.configure(text="100%"))
                 self.after(0, lambda: self.status_label.configure(text="Completed", text_color=COLORS["success"]))
 
         fmt = 'audio' if self.is_audio else 'video'
-        success, msg = self.downloader.download_video(self.url, self.download_path, format_type=fmt, progress_hook=progress_hook)
+        success, msg = self.downloader.download_video(self.url, self.download_path, format_type=fmt, progress_hook=progress_hook, playlist_name=self.playlist_title)
         
         self.is_downloading = False
         if not success:

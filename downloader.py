@@ -65,7 +65,7 @@ class VideoDownloader:
         except Exception as e:
             return {'error': str(e)}
 
-    def download_video(self, url, output_path, format_type='video', progress_hook=None):
+    def download_video(self, url, output_path, format_type='video', progress_hook=None, playlist_name=None):
         """
         Downloads the video.
         format_type: 'video' (best video+audio) or 'audio' (mp3)
@@ -83,8 +83,12 @@ class VideoDownloader:
             # print(f"Using cookie file: {cookie_file}")
             ydl_opts['cookiefile'] = cookie_file
 
-        # 1. Output Template Logic (Instagram Folder)
-        if "instagram.com" in url:
+        # 1. Output Template Logic
+        if playlist_name:
+             # Folder for Playlist: output_path / Playlist Name / Title.ext
+             safe_playlist = "".join(x for x in playlist_name if x.isalnum() or x in " -_").strip()
+             ydl_opts['outtmpl'] = os.path.join(output_path, safe_playlist, '%(title)s.%(ext)s')
+        elif "instagram.com" in url:
              # Structure: output_path / Title / Title-ID.ext
              ydl_opts['outtmpl'] = os.path.join(output_path, '%(title).100s', '%(title).100s-%(id)s.%(ext)s')
         else:
