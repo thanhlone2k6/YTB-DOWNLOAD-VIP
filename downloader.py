@@ -65,10 +65,11 @@ class VideoDownloader:
         except Exception as e:
             return {'error': str(e)}
 
-    def download_video(self, url, output_path, format_type='video', progress_hook=None, playlist_name=None):
+    def download_video(self, url, output_path, format_type='video', progress_hook=None, playlist_name=None, playlist_items=None):
         """
         Downloads the video.
         format_type: 'video' (best video+audio) or 'audio' (mp3)
+        playlist_items: string of indices (e.g. "1,2,5-10")
         """
         ydl_opts = {
             'progress_hooks': [progress_hook] if progress_hook else [],
@@ -93,6 +94,10 @@ class VideoDownloader:
              ydl_opts['outtmpl'] = os.path.join(output_path, '%(title).100s', '%(title).100s-%(id)s.%(ext)s')
         else:
              ydl_opts['outtmpl'] = os.path.join(output_path, '%(title)s.%(ext)s')
+             
+        # Playlist Selection
+        if playlist_items:
+            ydl_opts['playlist_items'] = playlist_items
 
         # 2. Format Logic (Auto MP4)
         if format_type == 'audio':

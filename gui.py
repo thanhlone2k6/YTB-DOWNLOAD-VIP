@@ -14,7 +14,7 @@ from downloader import VideoDownloader
 from config_manager import ConfigManager
 
 # --- CONFIG & CONSTANTS ---
-CURRENT_VERSION = "2.5.0"
+CURRENT_VERSION = "2.6.0"
 REPO_OWNER = "thanhlone2k6"
 REPO_NAME = "YTB-DOWNLOAD-VIP"
 
@@ -129,14 +129,41 @@ class TaskCard(ctk.CTkFrame):
              # Check if playlist
              self.is_playlist = False
              self.playlist_title = None
+             playlist_entries = None
+             
              if info.get('_type') == 'playlist' or 'entries' in info:
                  self.is_playlist = True
                  self.playlist_title = info.get('title', 'Unknown Playlist')
-                 self.after(0, lambda: self.meta_label.configure(text=f"Playlist • {platform}"))
+                 playlist_entries = list(info.get('entries', []))
+                 self.after(0, lambda: self.meta_label.configure(text=f"Playlist • {len(playlist_entries)} Videos"))
+
+             # Playlist Selection
+             self.selected_items_str = None
+             if self.is_playlist and playlist_entries:
+                 self.after(0, lambda: self.status_label.configure(text="Waiting for selection..."))
                  
+                 selection_event = threading.Event()
+                 
+                 def on_selected(items_str):
+                     self.selected_items_str = items_str
+                     selection_event.set()
+                 
+                 # Show dialog on main thread
+                 self.after(0, lambda: PlaylistSelectionDialog(self, playlist_entries, on_selected))
+                 
+                 # Wait
+                 selection_event.wait()
+                 
+                 if not self.selected_items_str:
+                     # User closed/cancelled - Stop task
+                     self.after(0, lambda: self.status_label.configure(text="Cancelled"))
+                     return
+
         except Exception as e:
             print(f"Metadata error: {e}")
-
+            if "Stopped by user" in str(e): return
+            if not self.is_playlist: # Don't error out if cancelled playlist
+                 self.after(0, lambda: self.status_label.configure(text="Error"))
         # Step 2: Start Download
         self.is_downloading = True
         self.after(0, lambda: self.status_label.configure(text="Downloading..."))
@@ -191,7 +218,7 @@ class TaskCard(ctk.CTkFrame):
                 self.after(0, lambda: self.status_label.configure(text="Completed", text_color=COLORS["success"]))
 
         fmt = 'audio' if self.is_audio else 'video'
-        success, msg = self.downloader.download_video(self.url, self.download_path, format_type=fmt, progress_hook=progress_hook, playlist_name=self.playlist_title)
+        success, msg = self.downloader.download_video(self.url, self.download_path, format_type=fmt, progress_hook=progress_hook, playlist_name=self.playlist_title, playlist_items=getattr(self, 'selected_items_str', None))
         
         self.is_downloading = False
         if not success:
@@ -527,3 +554,67 @@ if __name__ == "__main__":
     app = App()
     app.after(2000, app.check_update)
     app.mainloop()
+
+class PlaylistSelectionDialog(ctk.CTkToplevel):
+    def __init__(self, parent, video_list, on_confirm):
+        super().__init__(parent)
+        self.title("Select Videos to Download")
+        self.geometry("600x500")
+        self.on_confirm = on_confirm
+        self.check_vars = []
+        
+        # Make modal-like
+        self.transient(parent)
+        self.grab_set()
+        
+        # Title
+        ctk.CTkLabel(self, text=f"Found {len(video_list)} videos", font=("Arial", 18, "bold")).pack(pady=10)
+        
+        # Scrollable List
+        self.scroll_frame = ctk.CTkScrollableFrame(self, width=550, height=350)
+        self.scroll_frame.pack(pady=10, padx=10, fill="both", expand=True)
+        
+        # Populate
+        # video_list is list of dicts from 'entries'
+        for i, vid in enumerate(video_list, 1):
+            title = vid.get('title', f"Video {i}")
+            # Limit title length
+            if len(title) > 60: title = title[:57] + "..."
+            
+            var = ctk.BooleanVar(value=True)
+            self.check_vars.append((i, var))
+            
+            row = ctk.CTkFrame(self.scroll_frame)
+            row.pack(fill="x", pady=2)
+            
+            cb = ctk.CTkCheckBox(row, text=f"{i}. {title}", variable=var, width=500)
+            cb.pack(side="left", padx=5, pady=5)
+            
+        # Buttons
+        btn_frame = ctk.CTkFrame(self)
+        btn_frame.pack(pady=10, fill="x", side="bottom")
+        
+        ctk.CTkButton(btn_frame, text="Select All", command=self.select_all).pack(side="left", padx=20, pady=10)
+        ctk.CTkButton(btn_frame, text="Deselect All", command=self.deselect_all).pack(side="left", padx=20, pady=10)
+        ctk.CTkButton(btn_frame, text="Download Selected", command=self.confirm, fg_color="#28a745", hover_color="#218838").pack(side="right", padx=20, pady=10)
+
+    def select_all(self):
+        for _, var in self.check_vars: var.set(True)
+
+    def deselect_all(self):
+        for _, var in self.check_vars: var.set(False)
+
+    def confirm(self):
+        # Gather selected indices
+        selected = []
+        for i, var in self.check_vars:
+            if var.get():
+                selected.append(str(i))
+        
+        if not selected:
+            return # Do nothing if empty? Or allow close?
+            
+        # Join as string for yt-dlp "1,2,5-7" style (simplest is comma separated)
+        selection_str = ",".join(selected)
+        self.on_confirm(selection_str)
+        self.destroy()
